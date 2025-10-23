@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>FamilyDocs — v2.5 Improved</title>
+<title>FamilyDocs — v4.1 Premium</title>
 
 <!-- Tailwind CDN -->
 <script src="https://cdn.tailwindcss.com"></script>
@@ -14,20 +14,40 @@
 <!-- jsPDF -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" referrerpolicy="no-referrer"></script>
 
-<!-- Lucide icons -->
-<script src="https://unpkg.com/lucide@latest/dist/lucide.min.js"></script>
+<!-- icons removed for v4 text-only UI -->
 
 <style>
-  body { font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial; background: linear-gradient(180deg,#fbfdff,#eef6ff); color: #0b1220; }
-  .glass { background: rgba(255,255,255,0.85); backdrop-filter: blur(8px); border: 1px solid rgba(8,14,30,0.04); }
-  .avatar { width:56px;height:56px;border-radius:10px;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#93c5fd,#a78bfa);color:#041124;font-weight:700;font-size:20px; }
-  .btn-primary { background: linear-gradient(90deg,#4f46e5,#06b6d4); color:white; }
-  .doc-thumb { width:96px; height:68px; object-fit:cover; border-radius:8px; border:1px solid rgba(0,0,0,0.06); }
+  html { font-size:15.5px; }
+  body { font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial; background: linear-gradient(180deg,#fbfdff,#f3f6f8); color: #071725; }
+  .glass { background: rgba(255,255,255,0.9); backdrop-filter: blur(6px); border: 1px solid rgba(8,14,30,0.06); }
+  .avatar { width:64px;height:64px;border-radius:12px;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#38b2ac,#0ea5a3);color:#042028;font-weight:700;font-size:20px; box-shadow:0 8px 22px rgba(2,6,23,0.05); }
+  .version-badge{ font-size:11px; margin-left:6px; color:#5b6b79; }
+  .btn-primary { background: linear-gradient(90deg,#38b2ac,#0ea5a3); color:white; box-shadow: 0 6px 20px rgba(14,118,110,0.08); border: 1px solid rgba(3,105,100,0.08); padding:9px 12px; border-radius:10px; font-weight:600; }
+  .btn-primary:hover{ transform: translateY(-1px); }
+  /* action row for list view (horizontal, compact) */
+  .action-col{ display:flex; flex-direction:row; gap:10px; min-width:220px; align-items:center; justify-content:flex-end; flex-shrink:0; }
+  .action-col .action-btn{ padding:9px 12px; border-radius:10px; border:1px solid rgba(15,23,42,0.06); background:linear-gradient(180deg,#fff,#fcfcfd); text-align:center; font-weight:600; color:#082230; }
+  .action-col .action-btn.btn-primary{ background: linear-gradient(90deg,#38b2ac,#0ea5a3); color:white; border:1px solid rgba(3,105,100,0.08); }
+  /* responsive: action row becomes full-width below card on small screens */
+  @media (max-width:639px){ .action-col{ width:100%; margin-top:12px; justify-content:space-between; } .card-row{ flex-direction:column; align-items:stretch; } }
+  .doc-thumb { width:96px; height:68px; object-fit:cover; border-radius:8px; border:1px solid rgba(9,21,34,0.06); }
+  .doc-thumb.hidden{ display:none; }
+  .card{ transition: box-shadow .18s, transform .18s; }
+  .card:hover{ transform: translateY(-4px); box-shadow: 0 10px 28px rgba(2,6,23,0.05); }
   .modal-backdrop { position:fixed; inset:0; background:rgba(8,12,20,0.45); display:flex; align-items:center; justify-content:center; z-index:60; }
-  .modal { width:95%; max-width:720px; border-radius:12px; overflow:hidden; }
-  .kbd { background:#111827; color:white; padding:2px 6px; border-radius:6px; font-size:12px; }
+  .modal { width:95%; max-width:820px; border-radius:12px; overflow:hidden; font-size:15.5px; }
+  .modal .modal-header{ display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; }
+  .modal .close-x{ background:transparent; border:none; font-size:18px; padding:8px; border-radius:6px; }
+  .modal .p-4{ padding:18px; }
+  .btn-danger{ background:transparent; border:1px solid rgba(220,38,38,0.12); color:#b91c1c; padding:8px 10px; border-radius:8px; }
+  button:focus{ outline:3px solid rgba(14,118,110,0.18); outline-offset:3px; }
+  .kbd { background:#0f172a; color:white; padding:3px 7px; border-radius:6px; font-size:12px; }
   /* Touch target increase */
   button, input[type=file] { touch-action:manipulation; }
+
+  /* Modal inner spacing for clearer, less-cluttered content */
+  .modal .field-row{ margin-bottom:12px; }
+  .modal input, .modal button, .modal textarea { padding:10px 12px; }
 </style>
 </head>
 <body>
@@ -36,8 +56,11 @@
   <header class="flex items-center gap-4 mb-6">
     <div class="w-14 h-14 rounded-lg flex items-center justify-center bg-gradient-to-br from-sky-400 to-indigo-500 text-white text-xl font-bold shadow">FD</div>
     <div>
-      <h1 class="text-2xl font-semibold">FamilyDocs — Secure Vault</h1>
-      <p class="text-sm text-slate-600">Local-only • PIN optional • Improved image & PDF handling</p>
+      <div class="flex items-center">
+        <h1 class="text-3xl font-semibold">FamilyDocs — Secure Vault</h1>
+        <div class="version-badge">v4.1</div>
+      </div>
+      <p class="text-base text-slate-700">Local-only • PIN optional • Clear, easy document capture for families</p>
     </div>
     <div class="ml-auto flex items-center gap-3 text-sm">
       <div class="hidden sm:flex items-center gap-2 text-slate-600"><span class="kbd">Ctrl+N</span> add member</div>
@@ -48,16 +71,13 @@
   <main class="glass p-6 rounded-2xl shadow">
     <!-- controls -->
     <div class="flex flex-col sm:flex-row gap-3 mb-5 items-stretch">
-      <input id="memberName" class="flex-1 p-3 rounded-lg border" placeholder="Type name and press Enter — e.g. Rahul Sharma" />
-      <button id="addMemberBtn" class="px-4 py-3 rounded-lg btn-primary flex items-center gap-2">
+      <input id="memberName" class="flex-1 p-4 rounded-lg border text-lg" placeholder="Type name and press Enter — e.g. Rahul Sharma" />
+      <button id="addMemberBtn" class="px-5 py-3 rounded-lg btn-primary flex items-center gap-2">
         <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
         Add Member
       </button>
 
-      <button id="quickAddBtn" title="Quick Add Doc (Ctrl+Shift+D)" class="p-3 rounded-lg border flex items-center gap-2">
-        <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-slate-700" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
-        Quick Add Doc
-      </button>
+      <button id="quickAddBtn" title="Quick Add Doc (Ctrl+Shift+D)" class="p-3 rounded-lg border text-lg">Quick Add Doc</button>
     </div>
 
     <!-- search -->
@@ -65,8 +85,8 @@
       <input id="searchInput" placeholder="Search members or documents..." class="w-full p-3 rounded-lg border" />
     </div>
 
-    <!-- members grid -->
-    <section id="membersGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"></section>
+    <!-- members list -->
+    <section id="membersGrid" class="flex flex-col gap-4"></section>
   </main>
 </div>
 
@@ -117,55 +137,55 @@ function render(){
   const members = store.members.filter(m => !q || m.name.toLowerCase().includes(q) || m.docs.some(d=>d.title.toLowerCase().includes(q)));
   members.forEach(m => {
     const card = document.createElement('div');
-    card.className = 'p-4 rounded-xl glass card';
+    card.className = 'p-4 rounded-xl glass card transition-transform';
     card.innerHTML = `
-      <div class="flex items-start gap-3">
-        <div class="avatar">${escapeHtml(m.name[0]||'?')}</div>
-        <div class="flex-1">
-          <div class="flex items-center justify-between">
-            <div>
-              <div class="text-lg font-semibold">${escapeHtml(m.name)}</div>
-              <div class="text-xs text-slate-500">${new Date(m.createdAt).toLocaleString()}</div>
-            </div>
-            <div class="flex flex-col gap-2">
-              <button class="openBtn text-sm px-3 py-2 rounded border">Open</button>
-              <button class="addDocBtn text-sm px-3 py-2 rounded btn-primary">+ Doc</button>
+      <div class="card-row flex flex-col sm:flex-row items-start gap-3">
+        <div class="flex items-center gap-3 flex-1">
+          <div class="avatar">${escapeHtml(m.name[0]||'?')}</div>
+          <div>
+            <div class="text-lg font-semibold">${escapeHtml(m.name)}</div>
+            <div class="text-xs text-slate-500">${new Date(m.createdAt).toLocaleString()}</div>
+            <div class="mt-2">
+              ${m.docs.length === 0 ? '<div class="text-sm text-slate-500">No documents yet</div>' : `
+                <ul class="text-sm text-slate-700 space-y-1">
+                  ${m.docs.slice(0,3).map(d => `<li><span class="doc-home-link cursor-pointer text-sky-600" data-doc="${d.id}">${escapeHtml(d.title)}</span> <span class="text-xs text-slate-400">• ${new Date(d.createdAt).toLocaleDateString()}</span></li>`).join('')}
+                  ${m.docs.length > 3 ? '<li class="text-xs text-slate-500">... and more</li>' : ''}
+                </ul>
+              `}
             </div>
           </div>
-          <div class="mt-3 grid grid-cols-1 gap-2">
-            ${m.docs.slice(0,4).map(d => `
-              <div class="flex items-center gap-3 p-2 rounded-md border bg-white/40">
-                <img src="${d.front}" class="doc-thumb" alt="thumb">
-                <div class="flex-1">
-                  <div class="font-medium">${escapeHtml(d.title)}</div>
-                  <div class="text-xs text-slate-500">${new Date(d.createdAt).toLocaleString()}</div>
-                </div>
-                <div class="flex flex-col gap-2">
-                  <button data-doc="${d.id}" class="viewBtn text-xs px-2 py-1 rounded border">View</button>
-                  <button data-doc="${d.id}" class="shareBtn text-xs px-2 py-1 rounded border">Share</button>
-                </div>
-              </div>
-            `).join('')}
-            ${m.docs.length===0?'<div class="text-sm text-slate-500">No documents yet</div>':''}
-          </div>
+        </div>
+        <div class="action-col ml-4">
+          <button class="openBtn action-btn">Open</button>
+          <button class="editMemberBtn action-btn">Edit</button>
+          <button class="addDocBtn action-btn btn-primary">Add Doc</button>
+          <button class="deleteMemberAction action-btn" style="color:#b91c1c; border-color: rgba(185,28,28,0.12)">Delete</button>
         </div>
       </div>
     `;
     membersGrid.appendChild(card);
 
-    // bind buttons
-    card.querySelector('.openBtn').addEventListener('click', ()=> openMemberModal(m.id));
-    card.querySelector('.addDocBtn').addEventListener('click', ()=> openAddDocModal(m.id));
-    card.querySelectorAll('.viewBtn').forEach(b => b.addEventListener('click', (e)=> viewDocById(e.target.dataset.doc)));
-    card.querySelectorAll('.shareBtn').forEach(b => b.addEventListener('click', (e)=> shareDocById(e.target.dataset.doc)));
+    // bind card-local buttons (select within card to avoid duplicate names)
+    const openBtns = card.querySelectorAll('.openBtn');
+    openBtns.forEach(b => b.addEventListener('click', ()=> openMemberModal(m.id)));
+    card.querySelectorAll('.editMemberBtn').forEach(b => b.addEventListener('click', ()=> openEditMemberModal(m.id)));
+    card.querySelectorAll('.addDocBtn').forEach(b => b.addEventListener('click', ()=> openAddDocModal(m.id)));
+    card.querySelectorAll('.deleteMemberAction').forEach(b => b.addEventListener('click', ()=>{
+      if(!confirm('Delete this member and all documents?')) return;
+      const store = loadStore();
+      store.members = store.members.filter(x=>x.id!==m.id);
+      saveStore(store);
+      render();
+    }));
+    // bind home doc name links
+    card.querySelectorAll('.doc-home-link').forEach(el => el.addEventListener('click', (e)=> openDocDetail(e.target.dataset.doc)));
   });
 
   if(members.length === 0){
     membersGrid.innerHTML = `<div class="p-6 text-center text-slate-600">No members yet. Add one above. (Ctrl+N)</div>`;
   }
 
-  // refresh lucide icons if used
-  if(window.lucide) lucide.createIcons();
+  // no-op: icons removed for v4 text-only UI
 }
 
 /* ---------- Member functions ---------- */
@@ -186,111 +206,306 @@ function showModal(innerHtml){
   root.innerHTML = `
     <div class="modal-backdrop">
       <div class="modal glass p-4">
+        <div class="modal-header">
+          <div></div>
+          <button class="close-x" aria-label="Close">✕</button>
+        </div>
         ${innerHtml}
       </div>
     </div>
   `;
   const backdrop = root.querySelector('.modal-backdrop');
-  // close on backdrop click (if click outside modal content)
-  backdrop.addEventListener('click', (e)=>{
-    if(e.target === backdrop) root.innerHTML = '';
-  });
+  // prevent accidental close on backdrop click - do NOT close on backdrop
+  // close only via explicit close button or Escape key
+  const closeBtn = root.querySelector('.close-x');
+  closeBtn.addEventListener('click', ()=> root.innerHTML = '');
+  // Escape key closes
+  const onEsc = (e)=>{ if(e.key === 'Escape'){ root.innerHTML = ''; document.removeEventListener('keydown', onEsc); } };
+  document.addEventListener('keydown', onEsc);
+  // no-op: icons removed for v4 text-only UI
   return root;
 }
 
 /* ---------- Add Document modal (keyboard friendly) ---------- */
 function openAddDocModal(memberId){
-  const html = `
+  // allow passing captured/selected images back into modal via opts
+  function _open(memberId, opts={}){
+    const frontDataUrl = opts.frontDataUrl || null;
+    const backDataUrl = opts.backDataUrl || null;
+    const titlePrefill = opts.title || '';
+    const html = `
     <div class="p-4">
       <h3 class="text-lg font-semibold mb-2">Add Document</h3>
       <label class="text-sm">Title</label>
-      <input id="docTitle" class="w-full p-2 border rounded mb-2" placeholder="Aadhaar / PAN / etc" />
-      <label class="text-sm">Front image (camera/gallery)</label>
-      <input id="docFrontFile" type="file" accept="image/*" capture="environment" class="w-full mb-2" />
+      <input id="docTitle" class="w-full p-2 border rounded mb-2" placeholder="Aadhaar / PAN / etc" value="${escapeHtml(titlePrefill)}" />
+
+      <label class="text-sm">Front image (choose or capture)</label>
+      <div class="flex items-center gap-2 mb-2">
+        <button id="docFrontGalleryBtn" class="px-3 py-2 rounded border">Choose from gallery</button>
+        <button id="docFrontCaptureBtn" class="px-3 py-2 rounded border">Capture photo</button>
+        <input id="docFrontFileInput" type="file" accept="image/*" capture="environment" style="display:none" />
+        <img id="docFrontPreview" src="${frontDataUrl || ''}" alt="" class="doc-thumb ${frontDataUrl? '':'hidden'}" />
+      </div>
+
       <label class="text-sm">Back image (optional)</label>
-      <input id="docBackFile" type="file" accept="image/*" capture="environment" class="w-full mb-4" />
+      <div class="flex items-center gap-2 mb-4">
+        <button id="docBackGalleryBtn" class="px-3 py-2 rounded border">Choose from gallery</button>
+        <button id="docBackCaptureBtn" class="px-3 py-2 rounded border">Capture photo</button>
+        <input id="docBackFileInput" type="file" accept="image/*" capture="environment" style="display:none" />
+        <img id="docBackPreview" src="${backDataUrl || ''}" alt="" class="doc-thumb ${backDataUrl? '':'hidden'}" />
+      </div>
+
       <div class="flex justify-end gap-3">
         <button id="cancelDoc" class="px-3 py-2 rounded border">Cancel</button>
         <button id="saveDoc" class="px-3 py-2 rounded btn-primary">Save</button>
       </div>
     </div>
-  `;
-  const root = showModal(html);
-  const cancel = document.getElementById('cancelDoc');
-  const save = document.getElementById('saveDoc');
-  const titleInput = document.getElementById('docTitle');
-  const frontFile = document.getElementById('docFrontFile');
-  const backFile = document.getElementById('docBackFile');
+    `;
+    const root = showModal(html);
+    const cancel = document.getElementById('cancelDoc');
+    const save = document.getElementById('saveDoc');
+    const titleInput = document.getElementById('docTitle');
+    const frontFileInput = document.getElementById('docFrontFileInput');
+    const backFileInput = document.getElementById('docBackFileInput');
+    const frontPreview = document.getElementById('docFrontPreview');
+    const backPreview = document.getElementById('docBackPreview');
 
-  cancel.addEventListener('click', ()=> modalRoot.innerHTML = '');
-  save.addEventListener('click', async ()=>{
-    const title = titleInput.value.trim() || 'Document';
-    if(!frontFile.files[0]) return alert('Select front image');
-    try {
-      const fb = await fileToDataURL(frontFile.files[0]);
-      const bb = backFile.files[0]? await fileToDataURL(backFile.files[0]) : null;
-      const store = loadStore();
-      const member = store.members.find(x=>x.id===memberId);
-      member.docs.unshift({ id: uid('d'), title, front: fb, back: bb, createdAt: new Date().toISOString() });
-      saveStore(store);
-      modalRoot.innerHTML = '';
-      render();
-    } catch(err){ alert('Save failed: ' + err.message); }
-  });
+    // local variables to hold chosen/captured dataURLs
+    let frontData = frontDataUrl;
+    let backData = backDataUrl;
 
-  // Enter key saves
-  titleInput.addEventListener('keydown', (e)=> { if(e.key === 'Enter'){ e.preventDefault(); save.click(); } });
-  // focus
-  titleInput.focus();
+    cancel.addEventListener('click', ()=> modalRoot.innerHTML = '');
+
+    // gallery handlers
+    document.getElementById('docFrontGalleryBtn').addEventListener('click', ()=> frontFileInput.click());
+    document.getElementById('docBackGalleryBtn').addEventListener('click', ()=> backFileInput.click());
+
+    frontFileInput.addEventListener('change', async (e)=>{
+      if(e.target.files && e.target.files[0]){
+        frontData = await fileToDataURL(e.target.files[0]);
+        frontPreview.src = frontData;
+        frontPreview.classList.remove('hidden');
+      }
+    });
+    backFileInput.addEventListener('change', async (e)=>{
+      if(e.target.files && e.target.files[0]){
+        backData = await fileToDataURL(e.target.files[0]);
+        backPreview.src = backData;
+        backPreview.classList.remove('hidden');
+      }
+    });
+
+    // capture handlers (prefer getUserMedia, fallback to file input with capture)
+    document.getElementById('docFrontCaptureBtn').addEventListener('click', async ()=>{
+      try {
+        const dataUrl = await openCameraCapture();
+        // reopen modal with captured image preserved
+        modalRoot.innerHTML = '';
+        _open(memberId, { frontDataUrl: dataUrl, backDataUrl: backData, title: titleInput.value });
+      } catch(err){
+        // fallback: trigger file input which on mobile may open camera
+        frontFileInput.click();
+      }
+    });
+    document.getElementById('docBackCaptureBtn').addEventListener('click', async ()=>{
+      try {
+        const dataUrl = await openCameraCapture();
+        modalRoot.innerHTML = '';
+        _open(memberId, { frontDataUrl: frontData, backDataUrl: dataUrl, title: titleInput.value });
+      } catch(err){
+        backFileInput.click();
+      }
+    });
+
+    save.addEventListener('click', async ()=>{
+      const title = titleInput.value.trim() || 'Document';
+      if(!frontData){
+        return alert('Select or capture front image');
+      }
+      try {
+        const store = loadStore();
+        const member = store.members.find(x=>x.id===memberId);
+        member.docs.unshift({ id: uid('d'), title, front: frontData, back: backData || null, createdAt: new Date().toISOString() });
+        saveStore(store);
+        modalRoot.innerHTML = '';
+        render();
+      } catch(err){ alert('Save failed: ' + err.message); }
+    });
+
+    // Enter key saves
+    titleInput.addEventListener('keydown', (e)=> { if(e.key === 'Enter'){ e.preventDefault(); save.click(); } });
+    titleInput.focus();
+  }
+  return _open(memberId, {});
 }
 
 /* ---------- Quick Add modal (member + doc) ---------- */
 function openQuickAddModal(){
-  const html = `
+  // similar to addDoc modal, but also creates member
+  function _openQuick(opts={}){
+    const namePrefill = opts.name || '';
+    const titlePrefill = opts.title || '';
+    const frontDataUrl = opts.frontDataUrl || '';
+    const backDataUrl = opts.backDataUrl || '';
+    const html = `
     <div class="p-4">
       <h3 class="text-lg font-semibold mb-2">Quick Add: Member + Document</h3>
       <label class="text-sm">Member name</label>
-      <input id="qaName" class="w-full p-2 border rounded mb-2" placeholder="Full name" />
+      <input id="qaName" class="w-full p-2 border rounded mb-2" placeholder="Full name" value="${escapeHtml(namePrefill)}" />
       <label class="text-sm">Document title</label>
-      <input id="qaTitle" class="w-full p-2 border rounded mb-2" placeholder="Aadhaar / PAN" />
+      <input id="qaTitle" class="w-full p-2 border rounded mb-2" placeholder="Aadhaar / PAN" value="${escapeHtml(titlePrefill)}" />
+
       <label class="text-sm">Front image</label>
-      <input id="qaFront" type="file" accept="image/*" capture="environment" class="w-full mb-2" />
+      <div class="flex items-center gap-2 mb-2">
+        <button id="qaFrontGalleryBtn" class="px-3 py-2 rounded border">Choose from gallery</button>
+        <button id="qaFrontCaptureBtn" class="px-3 py-2 rounded border">Capture photo</button>
+        <input id="qaFrontInput" type="file" accept="image/*" capture="environment" style="display:none" />
+        <img id="qaFrontPreview" src="${frontDataUrl}" class="doc-thumb ${frontDataUrl? '':'hidden'}" />
+      </div>
+
       <label class="text-sm">Back image (opt)</label>
-      <input id="qaBack" type="file" accept="image/*" capture="environment" class="w-full mb-3" />
+      <div class="flex items-center gap-2 mb-3">
+        <button id="qaBackGalleryBtn" class="px-3 py-2 rounded border">Choose from gallery</button>
+        <button id="qaBackCaptureBtn" class="px-3 py-2 rounded border">Capture photo</button>
+        <input id="qaBackInput" type="file" accept="image/*" capture="environment" style="display:none" />
+        <img id="qaBackPreview" src="${backDataUrl}" class="doc-thumb ${backDataUrl? '':'hidden'}" />
+      </div>
+
       <div class="flex justify-end gap-3">
         <button id="qaCancel" class="px-3 py-2 rounded border">Cancel</button>
         <button id="qaSave" class="px-3 py-2 rounded btn-primary">Save All</button>
       </div>
     </div>
-  `;
-  const root = showModal(html);
-  const cancel = document.getElementById('qaCancel');
-  const save = document.getElementById('qaSave');
-  const nameInput = document.getElementById('qaName');
-  const titleInput = document.getElementById('qaTitle');
-  const frontFile = document.getElementById('qaFront');
-  const backFile = document.getElementById('qaBack');
+    `;
+    showModal(html);
+    const cancel = document.getElementById('qaCancel');
+    const save = document.getElementById('qaSave');
+    const nameInput = document.getElementById('qaName');
+    const titleInput = document.getElementById('qaTitle');
+    const frontInput = document.getElementById('qaFrontInput');
+    const backInput = document.getElementById('qaBackInput');
+    const frontPreview = document.getElementById('qaFrontPreview');
+    const backPreview = document.getElementById('qaBackPreview');
 
-  cancel.addEventListener('click', ()=> modalRoot.innerHTML = '');
-  save.addEventListener('click', async ()=>{
-    const name = nameInput.value.trim();
-    if(!name) return alert('Member name required');
-    if(!frontFile.files[0]) return alert('Front image required');
-    try {
-      const fb = await fileToDataURL(frontFile.files[0]);
-      const bb = backFile.files[0]? await fileToDataURL(backFile.files[0]) : null;
-      const store = loadStore();
-      const memberId = uid('m');
-      store.members.unshift({ id: memberId, name, docs: [{ id: uid('d'), title: titleInput.value.trim() || 'Document', front: fb, back: bb, createdAt: new Date().toISOString() }], createdAt: new Date().toISOString() });
-      saveStore(store);
-      modalRoot.innerHTML = '';
-      render();
-    } catch(e){ alert('Save failed: ' + e.message); }
+    let frontData = frontDataUrl || null;
+    let backData = backDataUrl || null;
+
+    cancel.addEventListener('click', ()=> modalRoot.innerHTML = '');
+
+    document.getElementById('qaFrontGalleryBtn').addEventListener('click', ()=> frontInput.click());
+    document.getElementById('qaBackGalleryBtn').addEventListener('click', ()=> backInput.click());
+
+    frontInput.addEventListener('change', async (e)=>{ if(e.target.files && e.target.files[0]){ frontData = await fileToDataURL(e.target.files[0]); frontPreview.src = frontData; frontPreview.classList.remove('hidden'); } });
+    backInput.addEventListener('change', async (e)=>{ if(e.target.files && e.target.files[0]){ backData = await fileToDataURL(e.target.files[0]); backPreview.src = backData; backPreview.classList.remove('hidden'); } });
+
+    document.getElementById('qaFrontCaptureBtn').addEventListener('click', async ()=>{
+      try{
+        const dataUrl = await openCameraCapture();
+        modalRoot.innerHTML = '';
+        _openQuick({ name: nameInput.value, title: titleInput.value, frontDataUrl: dataUrl, backDataUrl: backData });
+      }catch(e){ frontInput.click(); }
+    });
+    document.getElementById('qaBackCaptureBtn').addEventListener('click', async ()=>{
+      try{
+        const dataUrl = await openCameraCapture();
+        modalRoot.innerHTML = '';
+        _openQuick({ name: nameInput.value, title: titleInput.value, frontDataUrl: frontData, backDataUrl: dataUrl });
+      }catch(e){ backInput.click(); }
+    });
+
+    save.addEventListener('click', async ()=>{
+      const name = nameInput.value.trim();
+      if(!name) return alert('Member name required');
+      if(!frontData) return alert('Front image required');
+      try{
+        const store = loadStore();
+        // try to find existing member by case-insensitive name and reuse
+        const existing = store.members.find(m => m.name.toLowerCase() === name.toLowerCase());
+        if(existing){
+          existing.docs.unshift({ id: uid('d'), title: titleInput.value.trim() || 'Document', front: frontData, back: backData, createdAt: new Date().toISOString() });
+        } else {
+          const memberId = uid('m');
+          store.members.unshift({ id: memberId, name, docs: [{ id: uid('d'), title: titleInput.value.trim() || 'Document', front: frontData, back: backData, createdAt: new Date().toISOString() }], createdAt: new Date().toISOString() });
+        }
+        saveStore(store);
+        modalRoot.innerHTML = '';
+        render();
+      }catch(e){ alert('Save failed: ' + e.message); }
+    });
+
+    [nameInput, titleInput].forEach(inp=> inp.addEventListener('keydown', (e)=> { if(e.key === 'Enter'){ e.preventDefault(); save.click(); } }));
+    nameInput.focus();
+  }
+  return _openQuick({});
+}
+
+/* ---------- Camera capture helper ---------- */
+// Opens a modal with live camera preview and returns a Promise that resolves to a dataURL of the captured image.
+function openCameraCapture(){
+  return new Promise(async (resolve, reject) =>{
+    if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
+      return reject(new Error('Camera not supported'));
+    }
+    let stream = null;
+    try{
+      stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
+    }catch(err){ return reject(err); }
+
+    const html = `
+      <div class="p-4">
+        <h3 class="text-lg font-semibold mb-2">Capture Photo</h3>
+        <div class="w-full bg-black rounded mb-3" style="height:320px; display:flex; align-items:center; justify-content:center;">
+          <video id="camVideo" autoplay playsinline style="width:100%; height:100%; object-fit:cover; border-radius:8px"></video>
+        </div>
+        <div class="flex justify-between">
+          <button id="camCancel" class="px-3 py-2 rounded border">Cancel</button>
+          <div class="flex gap-2">
+            <button id="camFlip" class="px-3 py-2 rounded border">Flip</button>
+            <button id="camCapture" class="px-3 py-2 rounded btn-primary">Capture</button>
+          </div>
+        </div>
+      </div>
+    `;
+    showModal(html);
+
+  const video = document.getElementById('camVideo');
+  video.srcObject = stream;
+  video.focus?.();
+
+  const stopStream = ()=>{ if(stream){ stream.getTracks().forEach(t=>t.stop()); stream = null; } };
+
+  const cleanupAndReject = (errMsg='Cancelled')=>{ stopStream(); modalRoot.innerHTML = ''; reject(new Error(errMsg)); };
+  document.getElementById('camCancel').addEventListener('click', ()=> cleanupAndReject('Cancelled'));
+
+  // allow Escape to cancel
+  const onKey = (e)=>{ if(e.key === 'Escape'){ cleanupAndReject('Cancelled'); } };
+  document.addEventListener('keydown', onKey);
+
+    document.getElementById('camCapture').addEventListener('click', ()=>{
+      try{
+        const canvas = document.createElement('canvas');
+        canvas.width = video.videoWidth || 1280;
+        canvas.height = video.videoHeight || 720;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
+        stopStream();
+        modalRoot.innerHTML = '';
+        document.removeEventListener('keydown', onKey);
+        resolve(dataUrl);
+      }catch(e){ stopStream(); modalRoot.innerHTML = ''; reject(e); }
+    });
+
+    // simple flip: try to toggle facingMode by re-requesting stream
+    document.getElementById('camFlip').addEventListener('click', async ()=>{
+      try{
+        stopStream();
+        // inspect current facing; attempt 'user' then 'environment'
+        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false });
+        video.srcObject = stream;
+      }catch(e){ /* ignore flip errors */ }
+    });
   });
-
-  // Enter shortcuts
-  [nameInput, titleInput].forEach(inp=> inp.addEventListener('keydown', (e)=> { if(e.key === 'Enter'){ e.preventDefault(); save.click(); } }));
-  nameInput.focus();
 }
 
 /* ---------- Open member modal (view all docs) ---------- */
@@ -300,14 +515,14 @@ function openMemberModal(memberId){
   if(!m) return;
   const docsHtml = m.docs.map(d => `
     <div class="flex items-center gap-3 p-2 rounded border mb-2">
-      <img src="${d.front}" class="doc-thumb" alt="thumb">
       <div class="flex-1">
-        <div class="font-medium">${escapeHtml(d.title)}</div>
+        <div class="font-medium text-slate-800 cursor-pointer doc-name-link" data-doc="${d.id}">${escapeHtml(d.title)}</div>
         <div class="text-xs text-slate-500">${new Date(d.createdAt).toLocaleString()}</div>
       </div>
       <div class="flex flex-col gap-2">
-        <button data-doc="${d.id}" class="viewSmallBtn px-2 py-1 rounded border">View</button>
-        <button data-doc="${d.id}" class="shareSmallBtn px-2 py-1 rounded border">Share</button>
+        <button data-doc="${d.id}" class="viewSmallBtn action-btn">View</button>
+        <button data-doc="${d.id}" class="shareSmallBtn action-btn">Share</button>
+        <button data-doc="${d.id}" class="delSmallBtn action-btn" style="color:#b91c1c; border-color: rgba(185,28,28,0.12)">Delete</button>
       </div>
     </div>
   `).join('');
@@ -318,7 +533,11 @@ function openMemberModal(memberId){
           <div class="text-xl font-semibold">${escapeHtml(m.name)}</div>
           <div class="text-xs text-slate-500">Created: ${new Date(m.createdAt).toLocaleString()}</div>
         </div>
-        <div><button id="closeMember" class="px-3 py-2 rounded border">Close</button></div>
+        <div class="flex items-center gap-2">
+          <button id="deleteAllDocs" class="px-3 py-2 rounded border text-red-600">Delete All Docs</button>
+          <button id="deleteMemberBtn" class="px-3 py-2 rounded border text-red-700">Delete Member</button>
+          <button id="closeMember" class="px-3 py-2 rounded border">Close</button>
+        </div>
       </div>
       <div>${docsHtml || '<div class="text-slate-500">No documents</div>'}</div>
       <hr class="my-3">
@@ -330,9 +549,170 @@ function openMemberModal(memberId){
   showModal(html);
   document.getElementById('closeMember').addEventListener('click', ()=> modalRoot.innerHTML = '');
   document.getElementById('addDocHere').addEventListener('click', ()=> { modalRoot.innerHTML = ''; openAddDocModal(memberId); });
+  document.getElementById('deleteAllDocs').addEventListener('click', ()=>{
+    if(!confirm('Delete all documents for this member? This cannot be undone.')) return;
+    const store = loadStore();
+    const mm = store.members.find(x=>x.id===memberId);
+    if(!mm) return;
+    mm.docs = [];
+    saveStore(store);
+    modalRoot.innerHTML = '';
+    render();
+  });
+  document.getElementById('deleteMemberBtn').addEventListener('click', ()=>{
+    if(!confirm('Delete this member and all their documents? This cannot be undone.')) return;
+    const store = loadStore();
+    store.members = store.members.filter(x=>x.id!==memberId);
+    saveStore(store);
+    modalRoot.innerHTML = '';
+    render();
+  });
   // bind view/share buttons
   modalRoot.querySelectorAll('.viewSmallBtn').forEach(b => b.addEventListener('click', (e)=> viewDocById(e.target.dataset.doc)));
   modalRoot.querySelectorAll('.shareSmallBtn').forEach(b => b.addEventListener('click', (e)=> shareDocById(e.target.dataset.doc)));
+  modalRoot.querySelectorAll('.delSmallBtn').forEach(b => b.addEventListener('click', (e)=> deleteDocById(e.target.dataset.doc)));
+  modalRoot.querySelectorAll('.doc-name-link').forEach(el => el.addEventListener('click', (e)=> openDocDetail(e.target.dataset.doc)));
+}
+
+/* ---------- Delete helpers ---------- */
+function deleteDocById(docId){
+  if(!confirm('Delete this document?')) return;
+  const store = loadStore();
+  for(const m of store.members){
+    const idx = m.docs.findIndex(d=>d.id===docId);
+    if(idx >= 0){ m.docs.splice(idx,1); saveStore(store); render(); modalRoot.innerHTML = ''; return; }
+  }
+  alert('Document not found');
+}
+
+/* Delete member by id (global) */
+function deleteMemberById(memberId){
+  if(!confirm('Delete this member and all documents?')) return;
+  const store = loadStore();
+  store.members = store.members.filter(m=>m.id!==memberId);
+  saveStore(store);
+  render();
+}
+
+/* ---------- Document detail modal ---------- */
+async function openDocDetail(docId){
+  const store = loadStore();
+  const doc = store.members.flatMap(m=>m.docs).find(d=>d.id===docId);
+  if(!doc) return alert('Document not found');
+  const html = `
+    <div class="p-4">
+      <h3 class="text-lg font-semibold mb-2">${escapeHtml(doc.title)}</h3>
+      <div class="mb-3 text-xs text-slate-500">Created: ${new Date(doc.createdAt).toLocaleString()}</div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+        <div>
+          <div class="text-sm font-medium mb-1">Front</div>
+          <img src="${doc.front}" style="width:100%; border-radius:8px; border:1px solid rgba(0,0,0,0.06)" />
+        </div>
+        ${doc.back? `<div><div class="text-sm font-medium mb-1">Back</div><img src="${doc.back}" style="width:100%; border-radius:8px; border:1px solid rgba(0,0,0,0.06)" /></div>` : ''}
+      </div>
+      <div class="flex justify-end gap-2">
+        <button id="docPdfBtn" class="action-btn">Open PDF</button>
+        <button id="docShareBtn" class="action-btn">Share</button>
+        <button id="docEditBtn" class="action-btn">Edit</button>
+        <button id="docDelBtn" class="action-btn" style="color:#b91c1c; border-color: rgba(185,28,28,0.12)">Delete</button>
+      </div>
+    </div>
+  `;
+  showModal(html);
+  document.getElementById('docPdfBtn').addEventListener('click', ()=> viewDocById(docId));
+  document.getElementById('docShareBtn').addEventListener('click', ()=> shareDocById(docId));
+  document.getElementById('docDelBtn').addEventListener('click', ()=> deleteDocById(docId));
+  document.getElementById('docEditBtn').addEventListener('click', ()=> { modalRoot.innerHTML = ''; openEditDocModal(docId); });
+}
+
+/* ---------- Edit Member modal ---------- */
+function openEditMemberModal(memberId){
+  const store = loadStore();
+  const m = store.members.find(x=>x.id===memberId);
+  if(!m) return alert('Member not found');
+  const html = `
+    <div class="p-4">
+      <h3 class="text-lg font-semibold mb-2">Edit Member</h3>
+      <label class="text-sm">Name</label>
+      <input id="editMemberName" class="w-full p-2 border rounded mb-3" value="${escapeHtml(m.name)}" />
+      <div class="flex justify-end gap-2">
+        <button id="editMemberCancel" class="px-3 py-2 rounded border">Cancel</button>
+        <button id="editMemberSave" class="px-3 py-2 rounded btn-primary">Save</button>
+      </div>
+    </div>
+  `;
+  showModal(html);
+  document.getElementById('editMemberCancel').addEventListener('click', ()=> modalRoot.innerHTML = '');
+  document.getElementById('editMemberSave').addEventListener('click', ()=>{
+    const newName = document.getElementById('editMemberName').value.trim();
+    if(!newName) return alert('Name required');
+    m.name = newName;
+    saveStore(store);
+    modalRoot.innerHTML = '';
+    render();
+  });
+}
+
+/* ---------- Edit Document modal ---------- */
+function openEditDocModal(docId){
+  const store = loadStore();
+  const found = store.members.flatMap(m=>m.docs.map(d=>({memberId:m.id, doc:d}))).find(x=>x.doc.id===docId);
+  if(!found) return alert('Document not found');
+  const { memberId, doc } = found;
+  // reuse addDoc modal patterns for choosing/capturing images
+  const html = `
+    <div class="p-4">
+      <h3 class="text-lg font-semibold mb-2">Edit Document</h3>
+      <label class="text-sm">Title</label>
+      <input id="editDocTitle" class="w-full p-2 border rounded mb-2" value="${escapeHtml(doc.title)}" />
+      <label class="text-sm">Front image</label>
+      <div class="flex items-center gap-2 mb-2">
+        <button id="editFrontGalleryBtn" class="px-3 py-2 rounded border">Choose from gallery</button>
+        <button id="editFrontCaptureBtn" class="px-3 py-2 rounded border">Capture photo</button>
+        <input id="editFrontInput" type="file" accept="image/*" style="display:none" />
+        <img id="editFrontPreview" src="${doc.front}" class="doc-thumb" />
+      </div>
+      <label class="text-sm">Back image (optional)</label>
+      <div class="flex items-center gap-2 mb-4">
+        <button id="editBackGalleryBtn" class="px-3 py-2 rounded border">Choose from gallery</button>
+        <button id="editBackCaptureBtn" class="px-3 py-2 rounded border">Capture photo</button>
+        <input id="editBackInput" type="file" accept="image/*" style="display:none" />
+        <img id="editBackPreview" src="${doc.back||''}" class="doc-thumb ${doc.back? '':'hidden'}" />
+      </div>
+      <div class="flex justify-end gap-2">
+        <button id="editDocCancel" class="px-3 py-2 rounded border">Cancel</button>
+        <button id="editDocSave" class="px-3 py-2 rounded btn-primary">Save</button>
+      </div>
+    </div>
+  `;
+  showModal(html);
+
+  const frontInput = document.getElementById('editFrontInput');
+  const backInput = document.getElementById('editBackInput');
+  const frontPreview = document.getElementById('editFrontPreview');
+  const backPreview = document.getElementById('editBackPreview');
+
+  let frontData = doc.front;
+  let backData = doc.back || null;
+
+  document.getElementById('editFrontGalleryBtn').addEventListener('click', ()=> frontInput.click());
+  frontInput.addEventListener('change', async (e)=>{ if(e.target.files && e.target.files[0]){ frontData = await fileToDataURL(e.target.files[0]); frontPreview.src = frontData; frontPreview.classList.remove('hidden'); } });
+  document.getElementById('editFrontCaptureBtn').addEventListener('click', async ()=>{ try{ const data = await openCameraCapture(); modalRoot.innerHTML=''; openEditDocModal(docId); document.getElementById('editFrontPreview').src = data; frontData = data; }catch(e){} });
+
+  document.getElementById('editBackGalleryBtn').addEventListener('click', ()=> backInput.click());
+  backInput.addEventListener('change', async (e)=>{ if(e.target.files && e.target.files[0]){ backData = await fileToDataURL(e.target.files[0]); backPreview.src = backData; backPreview.classList.remove('hidden'); } });
+  document.getElementById('editBackCaptureBtn').addEventListener('click', async ()=>{ try{ const data = await openCameraCapture(); modalRoot.innerHTML=''; openEditDocModal(docId); document.getElementById('editBackPreview').src = data; backData = data; }catch(e){} });
+
+  document.getElementById('editDocCancel').addEventListener('click', ()=> modalRoot.innerHTML='');
+  document.getElementById('editDocSave').addEventListener('click', ()=>{
+    const newTitle = document.getElementById('editDocTitle').value.trim() || 'Document';
+    doc.title = newTitle;
+    doc.front = frontData;
+    doc.back = backData;
+    saveStore(store);
+    modalRoot.innerHTML = '';
+    render();
+  });
 }
 
 /* ---------- Helpers: file -> dataURL ---------- */
@@ -347,9 +727,10 @@ function fileToDataURL(file){
 
 /* ---------- PDF helpers (fit + orientation, no stretch) ---------- */
 async function imageToDimensions(dataUrl){
-  return new Promise((res)=>{
+  return new Promise((res, rej)=>{
     const img = new Image();
-    img.onload = ()=> res({ w: img.width, h: img.height, img });
+    img.onload = ()=> res({ w: img.naturalWidth || img.width, h: img.naturalHeight || img.height, img });
+    img.onerror = rej;
     img.src = dataUrl;
   });
 }
@@ -357,36 +738,35 @@ async function imageToDimensions(dataUrl){
 // draw image to PDF with preserving aspect ratio and centering.
 // page size A4 in mm: 210 x 297; we set margins
 async function addImageToPdf(pdf, dataUrl){
-  const { w, h } = await imageToDimensions(dataUrl);
-  const pageW = pdf.internal.pageSize.getWidth();
-  const pageH = pdf.internal.pageSize.getHeight();
-  const margin = 12; // mm
-  const maxW = pageW - margin*2;
-  const maxH = pageH - margin*2;
-  // compute ratio
-  const ratio = Math.min(maxW / w, maxH / h);
-  const drawW = w * ratio;
-  const drawH = h * ratio;
-  // center (convert px-based sizes to mm in jsPDF using px->pt mapping via addImage accepts pixels as-is when using default)
-  // jsPDF addImage expects units matching doc. We'll use 'px' fallback: convert px to mm by using scale factor.
-  // Simpler: use pdf.addImage(dataUrl, 'JPEG', x, y, width, height) where width/height are in user units (we created pdf in 'pt' earlier?), to avoid confusion we will create pdf in 'px' with large size.
-  // Better: create jsPDF in 'pt' and use pdf.getImageProperties to get intrinsic sizes? Simpler approach followed widely: use width/height in mm by computing scale relative to page mm using 72 DPI assumption.
-  // We'll use a pragmatic approach: compute drawW_mm and drawH_mm by mapping pixels -> mm using 96 DPI: 1 px = 0.264583 mm
+  // Use image natural dimensions and compute width/height in mm to preserve aspect ratio
+  const { w: imgWpx, h: imgHpx } = await imageToDimensions(dataUrl);
+  const pageW = pdf.internal.pageSize.getWidth(); // mm
+  const pageH = pdf.internal.pageSize.getHeight(); // mm
+  const margin = 12; // mm margin
+  const maxW = pageW - margin * 2;
+  const maxH = pageH - margin * 2;
+
+  // Convert px -> mm using 96 DPI standard: 1 px = 0.264583 mm
   const pxToMm = 0.264583;
-  const drawWmm = drawW * pxToMm;
-  const drawHmm = drawH * pxToMm;
+  const imgWmm = imgWpx * pxToMm;
+  const imgHmm = imgHpx * pxToMm;
+
+  const ratio = Math.min(maxW / imgWmm, maxH / imgHmm, 1);
+  const drawWmm = imgWmm * ratio;
+  const drawHmm = imgHmm * ratio;
   const x = (pageW - drawWmm) / 2;
   const y = (pageH - drawHmm) / 2;
+
+  // ensure we use JPEG/PNG accordingly; jsPDF auto-detects via dataURL
   pdf.addImage(dataUrl, 'JPEG', x, y, drawWmm, drawHmm);
 }
 
 /* add image pages properly (per-image orientation) */
-async function buildPdfFromImages(images){ // images = [base64DataUrl, ...]
+async function buildPdfFromImages(images){
   const { jsPDF } = window.jspdf;
-  // We'll always use portrait A4 pages, but we preserve aspect by fitting. If an image is landscape, it will fill width and be centered vertically.
   const pdf = new jsPDF({ unit: 'mm', format: 'a4' });
-  for(let i=0;i<images.length;i++){
-    if(i>0) pdf.addPage();
+  for(let i = 0; i < images.length; i++){
+    if(i > 0) pdf.addPage();
     await addImageToPdf(pdf, images[i]);
   }
   return pdf;
@@ -443,6 +823,7 @@ searchInput.addEventListener('input', ()=> render());
   }
   render();
 })();
+// icons removed for v4 text-only UI
 
 </script>
 </body>
