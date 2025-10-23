@@ -1,0 +1,450 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>FamilyDocs — v2.5 Improved</title>
+
+<!-- Tailwind CDN -->
+<script src="https://cdn.tailwindcss.com"></script>
+
+<!-- CryptoJS (AES) -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js" referrerpolicy="no-referrer"></script>
+
+<!-- jsPDF -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" referrerpolicy="no-referrer"></script>
+
+<!-- Lucide icons -->
+<script src="https://unpkg.com/lucide@latest/dist/lucide.min.js"></script>
+
+<style>
+  body { font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial; background: linear-gradient(180deg,#fbfdff,#eef6ff); color: #0b1220; }
+  .glass { background: rgba(255,255,255,0.85); backdrop-filter: blur(8px); border: 1px solid rgba(8,14,30,0.04); }
+  .avatar { width:56px;height:56px;border-radius:10px;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#93c5fd,#a78bfa);color:#041124;font-weight:700;font-size:20px; }
+  .btn-primary { background: linear-gradient(90deg,#4f46e5,#06b6d4); color:white; }
+  .doc-thumb { width:96px; height:68px; object-fit:cover; border-radius:8px; border:1px solid rgba(0,0,0,0.06); }
+  .modal-backdrop { position:fixed; inset:0; background:rgba(8,12,20,0.45); display:flex; align-items:center; justify-content:center; z-index:60; }
+  .modal { width:95%; max-width:720px; border-radius:12px; overflow:hidden; }
+  .kbd { background:#111827; color:white; padding:2px 6px; border-radius:6px; font-size:12px; }
+  /* Touch target increase */
+  button, input[type=file] { touch-action:manipulation; }
+</style>
+</head>
+<body>
+
+<div class="max-w-6xl mx-auto p-6">
+  <header class="flex items-center gap-4 mb-6">
+    <div class="w-14 h-14 rounded-lg flex items-center justify-center bg-gradient-to-br from-sky-400 to-indigo-500 text-white text-xl font-bold shadow">FD</div>
+    <div>
+      <h1 class="text-2xl font-semibold">FamilyDocs — Secure Vault</h1>
+      <p class="text-sm text-slate-600">Local-only • PIN optional • Improved image & PDF handling</p>
+    </div>
+    <div class="ml-auto flex items-center gap-3 text-sm">
+      <div class="hidden sm:flex items-center gap-2 text-slate-600"><span class="kbd">Ctrl+N</span> add member</div>
+      <div class="hidden sm:flex items-center gap-2 text-slate-600"><span class="kbd">Ctrl+Shift+D</span> quick doc</div>
+    </div>
+  </header>
+
+  <main class="glass p-6 rounded-2xl shadow">
+    <!-- controls -->
+    <div class="flex flex-col sm:flex-row gap-3 mb-5 items-stretch">
+      <input id="memberName" class="flex-1 p-3 rounded-lg border" placeholder="Type name and press Enter — e.g. Rahul Sharma" />
+      <button id="addMemberBtn" class="px-4 py-3 rounded-lg btn-primary flex items-center gap-2">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+        Add Member
+      </button>
+
+      <button id="quickAddBtn" title="Quick Add Doc (Ctrl+Shift+D)" class="p-3 rounded-lg border flex items-center gap-2">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-slate-700" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+        Quick Add Doc
+      </button>
+    </div>
+
+    <!-- search -->
+    <div class="mb-4">
+      <input id="searchInput" placeholder="Search members or documents..." class="w-full p-3 rounded-lg border" />
+    </div>
+
+    <!-- members grid -->
+    <section id="membersGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"></section>
+  </main>
+</div>
+
+<!-- MODALS (hidden in DOM) -->
+<div id="modalRoot" aria-hidden="true"></div>
+
+<script>
+/* ---------- Config & storage ---------- */
+const STORAGE_KEY = 'familydocs_v2p5_store';
+const ENC_KEY = 'FamilyDocsLocalKey_v2p5'; // local static key for demo; in prod derive from PIN
+// helper AES encrypt/decrypt using CryptoJS
+function encrypt(obj){ return CryptoJS.AES.encrypt(JSON.stringify(obj), ENC_KEY).toString(); }
+function decrypt(cipher){ try { const bytes = CryptoJS.AES.decrypt(cipher, ENC_KEY); return JSON.parse(bytes.toString(CryptoJS.enc.Utf8)); } catch(e){ return null; } }
+function loadStore(){ const s = localStorage.getItem(STORAGE_KEY); if(!s) return { members: [] }; const v = decrypt(s); return v || { members: [] }; }
+function saveStore(obj){ localStorage.setItem(STORAGE_KEY, encrypt(obj)); }
+
+/* ---------- UI helpers ---------- */
+const membersGrid = document.getElementById('membersGrid');
+const memberNameInput = document.getElementById('memberName');
+const addMemberBtn = document.getElementById('addMemberBtn');
+const quickAddBtn = document.getElementById('quickAddBtn');
+const searchInput = document.getElementById('searchInput');
+const modalRoot = document.getElementById('modalRoot');
+
+function uid(prefix='id'){ return prefix + '_' + Math.random().toString(36).slice(2,9); }
+function escapeHtml(s){ return (s||'').replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+
+/* ---------- Keyboard: Enter and shortcuts ---------- */
+// Enter in member input adds member
+memberNameInput.addEventListener('keydown', (e)=>{
+  if(e.key === 'Enter'){ e.preventDefault(); addMember(); }
+});
+// keyboard shortcuts
+document.addEventListener('keydown', (e)=>{
+  if(e.ctrlKey && !e.shiftKey && e.key.toLowerCase() === 'n'){ // Ctrl+N -> focus new member
+    e.preventDefault(); memberNameInput.focus(); memberNameInput.select();
+  }
+  if(e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 'd'){ // Ctrl+Shift+D -> quick add doc
+    e.preventDefault(); openQuickAddModal();
+  }
+});
+
+/* ---------- Render ---------- */
+function render(){
+  const q = (searchInput.value || '').toLowerCase();
+  const store = loadStore();
+  membersGrid.innerHTML = '';
+  const members = store.members.filter(m => !q || m.name.toLowerCase().includes(q) || m.docs.some(d=>d.title.toLowerCase().includes(q)));
+  members.forEach(m => {
+    const card = document.createElement('div');
+    card.className = 'p-4 rounded-xl glass card';
+    card.innerHTML = `
+      <div class="flex items-start gap-3">
+        <div class="avatar">${escapeHtml(m.name[0]||'?')}</div>
+        <div class="flex-1">
+          <div class="flex items-center justify-between">
+            <div>
+              <div class="text-lg font-semibold">${escapeHtml(m.name)}</div>
+              <div class="text-xs text-slate-500">${new Date(m.createdAt).toLocaleString()}</div>
+            </div>
+            <div class="flex flex-col gap-2">
+              <button class="openBtn text-sm px-3 py-2 rounded border">Open</button>
+              <button class="addDocBtn text-sm px-3 py-2 rounded btn-primary">+ Doc</button>
+            </div>
+          </div>
+          <div class="mt-3 grid grid-cols-1 gap-2">
+            ${m.docs.slice(0,4).map(d => `
+              <div class="flex items-center gap-3 p-2 rounded-md border bg-white/40">
+                <img src="${d.front}" class="doc-thumb" alt="thumb">
+                <div class="flex-1">
+                  <div class="font-medium">${escapeHtml(d.title)}</div>
+                  <div class="text-xs text-slate-500">${new Date(d.createdAt).toLocaleString()}</div>
+                </div>
+                <div class="flex flex-col gap-2">
+                  <button data-doc="${d.id}" class="viewBtn text-xs px-2 py-1 rounded border">View</button>
+                  <button data-doc="${d.id}" class="shareBtn text-xs px-2 py-1 rounded border">Share</button>
+                </div>
+              </div>
+            `).join('')}
+            ${m.docs.length===0?'<div class="text-sm text-slate-500">No documents yet</div>':''}
+          </div>
+        </div>
+      </div>
+    `;
+    membersGrid.appendChild(card);
+
+    // bind buttons
+    card.querySelector('.openBtn').addEventListener('click', ()=> openMemberModal(m.id));
+    card.querySelector('.addDocBtn').addEventListener('click', ()=> openAddDocModal(m.id));
+    card.querySelectorAll('.viewBtn').forEach(b => b.addEventListener('click', (e)=> viewDocById(e.target.dataset.doc)));
+    card.querySelectorAll('.shareBtn').forEach(b => b.addEventListener('click', (e)=> shareDocById(e.target.dataset.doc)));
+  });
+
+  if(members.length === 0){
+    membersGrid.innerHTML = `<div class="p-6 text-center text-slate-600">No members yet. Add one above. (Ctrl+N)</div>`;
+  }
+
+  // refresh lucide icons if used
+  if(window.lucide) lucide.createIcons();
+}
+
+/* ---------- Member functions ---------- */
+function addMember(){
+  const name = (memberNameInput.value || '').trim();
+  if(!name) { alert('Type a name'); memberNameInput.focus(); return; }
+  const store = loadStore();
+  const m = { id: uid('m'), name, docs: [], createdAt: new Date().toISOString() };
+  store.members.unshift(m);
+  saveStore(store);
+  memberNameInput.value = '';
+  render();
+}
+
+/* ---------- Modal utilities ---------- */
+function showModal(innerHtml){
+  const root = modalRoot;
+  root.innerHTML = `
+    <div class="modal-backdrop">
+      <div class="modal glass p-4">
+        ${innerHtml}
+      </div>
+    </div>
+  `;
+  const backdrop = root.querySelector('.modal-backdrop');
+  // close on backdrop click (if click outside modal content)
+  backdrop.addEventListener('click', (e)=>{
+    if(e.target === backdrop) root.innerHTML = '';
+  });
+  return root;
+}
+
+/* ---------- Add Document modal (keyboard friendly) ---------- */
+function openAddDocModal(memberId){
+  const html = `
+    <div class="p-4">
+      <h3 class="text-lg font-semibold mb-2">Add Document</h3>
+      <label class="text-sm">Title</label>
+      <input id="docTitle" class="w-full p-2 border rounded mb-2" placeholder="Aadhaar / PAN / etc" />
+      <label class="text-sm">Front image (camera/gallery)</label>
+      <input id="docFrontFile" type="file" accept="image/*" capture="environment" class="w-full mb-2" />
+      <label class="text-sm">Back image (optional)</label>
+      <input id="docBackFile" type="file" accept="image/*" capture="environment" class="w-full mb-4" />
+      <div class="flex justify-end gap-3">
+        <button id="cancelDoc" class="px-3 py-2 rounded border">Cancel</button>
+        <button id="saveDoc" class="px-3 py-2 rounded btn-primary">Save</button>
+      </div>
+    </div>
+  `;
+  const root = showModal(html);
+  const cancel = document.getElementById('cancelDoc');
+  const save = document.getElementById('saveDoc');
+  const titleInput = document.getElementById('docTitle');
+  const frontFile = document.getElementById('docFrontFile');
+  const backFile = document.getElementById('docBackFile');
+
+  cancel.addEventListener('click', ()=> modalRoot.innerHTML = '');
+  save.addEventListener('click', async ()=>{
+    const title = titleInput.value.trim() || 'Document';
+    if(!frontFile.files[0]) return alert('Select front image');
+    try {
+      const fb = await fileToDataURL(frontFile.files[0]);
+      const bb = backFile.files[0]? await fileToDataURL(backFile.files[0]) : null;
+      const store = loadStore();
+      const member = store.members.find(x=>x.id===memberId);
+      member.docs.unshift({ id: uid('d'), title, front: fb, back: bb, createdAt: new Date().toISOString() });
+      saveStore(store);
+      modalRoot.innerHTML = '';
+      render();
+    } catch(err){ alert('Save failed: ' + err.message); }
+  });
+
+  // Enter key saves
+  titleInput.addEventListener('keydown', (e)=> { if(e.key === 'Enter'){ e.preventDefault(); save.click(); } });
+  // focus
+  titleInput.focus();
+}
+
+/* ---------- Quick Add modal (member + doc) ---------- */
+function openQuickAddModal(){
+  const html = `
+    <div class="p-4">
+      <h3 class="text-lg font-semibold mb-2">Quick Add: Member + Document</h3>
+      <label class="text-sm">Member name</label>
+      <input id="qaName" class="w-full p-2 border rounded mb-2" placeholder="Full name" />
+      <label class="text-sm">Document title</label>
+      <input id="qaTitle" class="w-full p-2 border rounded mb-2" placeholder="Aadhaar / PAN" />
+      <label class="text-sm">Front image</label>
+      <input id="qaFront" type="file" accept="image/*" capture="environment" class="w-full mb-2" />
+      <label class="text-sm">Back image (opt)</label>
+      <input id="qaBack" type="file" accept="image/*" capture="environment" class="w-full mb-3" />
+      <div class="flex justify-end gap-3">
+        <button id="qaCancel" class="px-3 py-2 rounded border">Cancel</button>
+        <button id="qaSave" class="px-3 py-2 rounded btn-primary">Save All</button>
+      </div>
+    </div>
+  `;
+  const root = showModal(html);
+  const cancel = document.getElementById('qaCancel');
+  const save = document.getElementById('qaSave');
+  const nameInput = document.getElementById('qaName');
+  const titleInput = document.getElementById('qaTitle');
+  const frontFile = document.getElementById('qaFront');
+  const backFile = document.getElementById('qaBack');
+
+  cancel.addEventListener('click', ()=> modalRoot.innerHTML = '');
+  save.addEventListener('click', async ()=>{
+    const name = nameInput.value.trim();
+    if(!name) return alert('Member name required');
+    if(!frontFile.files[0]) return alert('Front image required');
+    try {
+      const fb = await fileToDataURL(frontFile.files[0]);
+      const bb = backFile.files[0]? await fileToDataURL(backFile.files[0]) : null;
+      const store = loadStore();
+      const memberId = uid('m');
+      store.members.unshift({ id: memberId, name, docs: [{ id: uid('d'), title: titleInput.value.trim() || 'Document', front: fb, back: bb, createdAt: new Date().toISOString() }], createdAt: new Date().toISOString() });
+      saveStore(store);
+      modalRoot.innerHTML = '';
+      render();
+    } catch(e){ alert('Save failed: ' + e.message); }
+  });
+
+  // Enter shortcuts
+  [nameInput, titleInput].forEach(inp=> inp.addEventListener('keydown', (e)=> { if(e.key === 'Enter'){ e.preventDefault(); save.click(); } }));
+  nameInput.focus();
+}
+
+/* ---------- Open member modal (view all docs) ---------- */
+function openMemberModal(memberId){
+  const store = loadStore();
+  const m = store.members.find(x=>x.id===memberId);
+  if(!m) return;
+  const docsHtml = m.docs.map(d => `
+    <div class="flex items-center gap-3 p-2 rounded border mb-2">
+      <img src="${d.front}" class="doc-thumb" alt="thumb">
+      <div class="flex-1">
+        <div class="font-medium">${escapeHtml(d.title)}</div>
+        <div class="text-xs text-slate-500">${new Date(d.createdAt).toLocaleString()}</div>
+      </div>
+      <div class="flex flex-col gap-2">
+        <button data-doc="${d.id}" class="viewSmallBtn px-2 py-1 rounded border">View</button>
+        <button data-doc="${d.id}" class="shareSmallBtn px-2 py-1 rounded border">Share</button>
+      </div>
+    </div>
+  `).join('');
+  const html = `
+    <div class="p-4">
+      <div class="flex justify-between items-center mb-3">
+        <div>
+          <div class="text-xl font-semibold">${escapeHtml(m.name)}</div>
+          <div class="text-xs text-slate-500">Created: ${new Date(m.createdAt).toLocaleString()}</div>
+        </div>
+        <div><button id="closeMember" class="px-3 py-2 rounded border">Close</button></div>
+      </div>
+      <div>${docsHtml || '<div class="text-slate-500">No documents</div>'}</div>
+      <hr class="my-3">
+      <div class="flex justify-end gap-2">
+        <button id="addDocHere" class="px-3 py-2 rounded btn-primary">Add Document</button>
+      </div>
+    </div>
+  `;
+  showModal(html);
+  document.getElementById('closeMember').addEventListener('click', ()=> modalRoot.innerHTML = '');
+  document.getElementById('addDocHere').addEventListener('click', ()=> { modalRoot.innerHTML = ''; openAddDocModal(memberId); });
+  // bind view/share buttons
+  modalRoot.querySelectorAll('.viewSmallBtn').forEach(b => b.addEventListener('click', (e)=> viewDocById(e.target.dataset.doc)));
+  modalRoot.querySelectorAll('.shareSmallBtn').forEach(b => b.addEventListener('click', (e)=> shareDocById(e.target.dataset.doc)));
+}
+
+/* ---------- Helpers: file -> dataURL ---------- */
+function fileToDataURL(file){
+  return new Promise((res, rej)=>{
+    const fr = new FileReader();
+    fr.onload = ()=> res(fr.result);
+    fr.onerror = rej;
+    fr.readAsDataURL(file);
+  });
+}
+
+/* ---------- PDF helpers (fit + orientation, no stretch) ---------- */
+async function imageToDimensions(dataUrl){
+  return new Promise((res)=>{
+    const img = new Image();
+    img.onload = ()=> res({ w: img.width, h: img.height, img });
+    img.src = dataUrl;
+  });
+}
+
+// draw image to PDF with preserving aspect ratio and centering.
+// page size A4 in mm: 210 x 297; we set margins
+async function addImageToPdf(pdf, dataUrl){
+  const { w, h } = await imageToDimensions(dataUrl);
+  const pageW = pdf.internal.pageSize.getWidth();
+  const pageH = pdf.internal.pageSize.getHeight();
+  const margin = 12; // mm
+  const maxW = pageW - margin*2;
+  const maxH = pageH - margin*2;
+  // compute ratio
+  const ratio = Math.min(maxW / w, maxH / h);
+  const drawW = w * ratio;
+  const drawH = h * ratio;
+  // center (convert px-based sizes to mm in jsPDF using px->pt mapping via addImage accepts pixels as-is when using default)
+  // jsPDF addImage expects units matching doc. We'll use 'px' fallback: convert px to mm by using scale factor.
+  // Simpler: use pdf.addImage(dataUrl, 'JPEG', x, y, width, height) where width/height are in user units (we created pdf in 'pt' earlier?), to avoid confusion we will create pdf in 'px' with large size.
+  // Better: create jsPDF in 'pt' and use pdf.getImageProperties to get intrinsic sizes? Simpler approach followed widely: use width/height in mm by computing scale relative to page mm using 72 DPI assumption.
+  // We'll use a pragmatic approach: compute drawW_mm and drawH_mm by mapping pixels -> mm using 96 DPI: 1 px = 0.264583 mm
+  const pxToMm = 0.264583;
+  const drawWmm = drawW * pxToMm;
+  const drawHmm = drawH * pxToMm;
+  const x = (pageW - drawWmm) / 2;
+  const y = (pageH - drawHmm) / 2;
+  pdf.addImage(dataUrl, 'JPEG', x, y, drawWmm, drawHmm);
+}
+
+/* add image pages properly (per-image orientation) */
+async function buildPdfFromImages(images){ // images = [base64DataUrl, ...]
+  const { jsPDF } = window.jspdf;
+  // We'll always use portrait A4 pages, but we preserve aspect by fitting. If an image is landscape, it will fill width and be centered vertically.
+  const pdf = new jsPDF({ unit: 'mm', format: 'a4' });
+  for(let i=0;i<images.length;i++){
+    if(i>0) pdf.addPage();
+    await addImageToPdf(pdf, images[i]);
+  }
+  return pdf;
+}
+
+/* ---------- View & Share functions ---------- */
+async function viewDocById(docId){
+  const store = loadStore();
+  const doc = store.members.flatMap(m=>m.docs).find(d=>d.id===docId);
+  if(!doc) return alert('Doc not found');
+  const images = [doc.front];
+  if(doc.back) images.push(doc.back);
+  const pdf = await buildPdfFromImages(images);
+  const blob = pdf.output('blob');
+  const url = URL.createObjectURL(blob);
+  window.open(url, '_blank');
+}
+
+async function shareDocById(docId){
+  const store = loadStore();
+  const doc = store.members.flatMap(m=>m.docs).find(d=>d.id===docId);
+  if(!doc) return alert('Doc not found');
+  const images = [doc.front];
+  if(doc.back) images.push(doc.back);
+  const pdf = await buildPdfFromImages(images);
+  const blob = pdf.output('blob');
+  // mobile: Web Share API
+  if(navigator.canShare && navigator.canShare({ files: [ new File([blob], `${doc.title}.pdf`, { type:'application/pdf' }) ] })){
+    try {
+      await navigator.share({ files: [ new File([blob], `${doc.title}.pdf`, { type:'application/pdf' }) ], title: doc.title });
+      return;
+    } catch(e){ /* share cancelled or failed */ }
+  }
+  // fallback: download
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `${doc.title}.pdf`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+/* ---------- wire up quick add and search ---------- */
+addMemberBtn.addEventListener('click', addMember);
+quickAddBtn.addEventListener('click', openQuickAddModal);
+searchInput.addEventListener('input', ()=> render());
+
+/* ---------- initial render ---------- */
+(function init(){
+  // initial demo data if empty
+  const store = loadStore();
+  if(!store.members || store.members.length === 0){
+    // keep empty; user will add
+    saveStore({ members: [] });
+  }
+  render();
+})();
+
+</script>
+</body>
+</html>
+
